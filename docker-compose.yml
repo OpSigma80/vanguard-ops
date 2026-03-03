@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: OpSigma80
+      POSTGRES_PASSWORD: vanguard_pass_2026
       POSTGRES_DB: automation_engine_db
     ports:
       - "5432:5432"
@@ -20,6 +20,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:OpSigma80@db:5432/automation_engine_db
+      - DATABASE_URL=postgresql://postgres:vanguard_pass_2026@db:5432/automation_engine_db
     depends_on:
       - db
