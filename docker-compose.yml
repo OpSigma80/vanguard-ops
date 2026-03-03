@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:17
+    container_name: automation_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: OpSigma80
+      POSTGRES_DB: automation_engine_db
+    ports:
+      - "5432:5432"
+
+  api:
+    build: .
+    container_name: automation_api
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:OpSigma80@db:5432/automation_engine_db
+    depends_on:
+      - db
