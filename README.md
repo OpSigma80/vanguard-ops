@@ -1,4 +1,5 @@
  
+<img width="1312" height="610" alt="imagen" src="https://github.com/user-attachments/assets/e477346d-fa2d-4a3d-af32-d4deb95877ea" />
 
 
 ### 📄 README.md (Enterprise Optimized)
