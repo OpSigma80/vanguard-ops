@@ -31,3 +31,12 @@ class PostgresLeadRepository(LeadRepository):
                     (email, phone)
                 )
                 return await cur.fetchone() is not None
+
+    async def delete(self, lead_id: str) -> bool:
+        async with await psycopg.AsyncConnection.connect(self.conn_info) as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "DELETE FROM leads WHERE id = %s",
+                    (lead_id,)
+                )
+                return cur.rowcount > 0

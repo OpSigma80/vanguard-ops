@@ -10,3 +10,7 @@ class LeadRepository(ABC):
     @abstractmethod
     async def find_by_email_or_phone(self, email: Optional[str], phone: Optional[str]) -> Optional[Lead]:
         pass
+
+    @abstractmethod
+    async def delete(self, lead_id: str) -> bool:
+        pass

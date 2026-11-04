@@ -1,11 +1,16 @@
 # Seguridad de Credenciales
 .env
+.env.*
+!.env.example
 
 # Archivos de Python
 __pycache__/
 *.pyc
 .venv/
 env/
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Archivos de Sistema
 .DS_Store

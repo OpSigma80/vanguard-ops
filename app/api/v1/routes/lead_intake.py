@@ -60,3 +60,17 @@ async def lead_intake(
         # Imprime el error en consola para que podamos debugear si falla la conexión
         print(f"DEBUG ERROR: {e}") 
         raise HTTPException(status_code=500, detail="Internal Server Error")
+
+@router.delete("/leads/{lead_id}", status_code=204, summary="Delete a lead")
+async def delete_lead(
+    lead_id: str,
+    use_case: ProcessLead = Depends(get_process_lead)
+):
+    try:
+        deleted = await use_case.repo.delete(lead_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Lead not found")
+        return None
+    except Exception as e:
+        print(f"DEBUG ERROR: {e}")
+        raise HTTPException(status_code=500, detail="Internal Server Error")
