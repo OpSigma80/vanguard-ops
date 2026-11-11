@@ -6,11 +6,13 @@
 # Archivos de Python
 __pycache__/
 *.pyc
+*.py[cod]
 .venv/
 env/
 .pytest_cache/
 .coverage
 htmlcov/
+*.egg-info/
 
 # Archivos de Sistema
 .DS_Store
