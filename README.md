@@ -9,7 +9,7 @@ VanguardOps is a lead-intake dashboard and API built with FastAPI, PostgreSQL, J
 Implemented application behavior:
 
 - Lead dashboard rendered with Jinja2
-- Lead creation from the dashboard and JSON API
+- Lead creation, correction, and deletion from the dashboard and JSON API
 - Email validation with Pydantic
 - Lead deletion with UUID validation
 - PostgreSQL persistence
@@ -31,6 +31,29 @@ Dashboard presentation values:
 - Dashboard: `http://localhost:8001`
 - Swagger UI: `http://localhost:8001/docs`
 - OpenAPI schema: `http://localhost:8001/openapi.json`
+
+## Data persistence and memory
+
+Leads and system audit logs are stored in PostgreSQL and persist across API
+restarts, rather than existing only in FastAPI process memory.
+
+- Leads created from the dashboard or API are saved in the `leads` table.
+- Creation, update, and deletion actions are recorded in the `audit_logs` table.
+- Dashboard leads are read from PostgreSQL each time the page is loaded.
+- The dashboard shows the latest 10 leads and the latest 15 audit log entries.
+- Docker Compose uses the `postgres_data` volume for database persistence.
+- Refreshing or restarting the API does not delete the stored leads or logs.
+- Individual audit-log entries can be deleted from the System Logs panel.
+
+For normal operations:
+
+- `docker compose down` stops the containers without deleting database data.
+- Restart with `docker compose up -d`.
+- Use `docker compose down -v` only if you intentionally want to delete all leads,
+  audit logs, and other PostgreSQL data stored in the Docker volume.
+
+PostgreSQL is the only durable application database. Browser memory is used only
+for temporary form values while editing a lead.
 
 ## Technology
 
@@ -61,6 +84,22 @@ Content-Type: application/json
 
 Successful creation returns `201 Created`.
 
+### Update a lead
+
+```http
+PATCH /api/v1/leads/{lead_id}
+Content-Type: application/json
+
+{
+  "full_name": "Updated User",
+  "email": "updated@example.com",
+  "phone": "555-111",
+  "source": "Dashboard V1"
+}
+```
+
+Returns `200` after updating the lead, `404` when the lead does not exist, and `422` for a malformed UUID.
+
 ### Delete a lead
 
 ```http
@@ -68,6 +107,14 @@ DELETE /api/v1/leads/{lead_id}
 ```
 
 Returns `200` after deletion, `404` when the lead does not exist, and `422` for a malformed UUID.
+
+### Delete an individual System Log record
+
+```http
+DELETE /api/v1/audit-logs/{log_id}
+```
+
+Returns `200` after deletion and `404` when the audit log record does not exist.
 
 ## Run with Docker
 
@@ -112,9 +159,9 @@ Run the test suite inside the API container:
 docker compose exec api pytest -q
 ```
 
-The suite currently verifies lead model normalization and validation, email validation, lead creation, and malformed UUID handling.
+The suite currently verifies lead model normalization and validation, email validation, lead creation and updates, audit-log deletion, not-found responses, and malformed UUID handling.
 
-Verified locally with Python 3.12.3: 5 tests passed with one pending deprecation warning from `python-multipart`.
+Verified locally with Python 3.12.3: 9 tests passed with one pending deprecation warning from `python-multipart`.
 
 Docker-based execution has not been verified as part of this README update.
 

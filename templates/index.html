@@ -115,7 +115,7 @@
                         RECENT LEADS
                     </h2>
 
-                    <button onclick="document.getElementById('leadModal').classList.remove('hidden')"
+                    <button onclick="openNewLead()"
                         class="vanguard-bg-orange hover:bg-orange-600 text-white text-xs px-4 py-2 rounded-lg font-black transition uppercase">
                         <i class="fas fa-plus mr-1"></i>
                         NEW LEAD
@@ -130,6 +130,7 @@
                                 <th class="p-4">Email</th>
                                 <th class="p-4">Source</th>
                                 <th class="p-4">Date</th>
+                                <th class="p-4 text-right">Actions</th>
                             </tr>
                         </thead>
 
@@ -144,6 +145,26 @@
                                     </span>
                                 </td>
                                 <td class="p-4 text-slate-500 text-xs">{{ lead[5] }}</td>
+                                <td class="p-4">
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button"
+                                            data-id="{{ lead[0] }}"
+                                            data-name="{{ lead[1] }}"
+                                            data-email="{{ lead[2] }}"
+                                            data-phone="{{ lead[3] }}"
+                                            data-source="{{ lead[4] }}"
+                                            class="edit-lead text-xs px-3 py-2 rounded-lg border border-cyan-500/40 text-cyan-400 hover:bg-cyan-500/10 transition"
+                                            title="Corregir lead">
+                                            <i class="fas fa-edit mr-1"></i> Corregir
+                                        </button>
+                                        <button type="button"
+                                            data-id="{{ lead[0] }}"
+                                            class="delete-lead text-xs px-3 py-2 rounded-lg border border-red-500/40 text-red-400 hover:bg-red-500/10 transition"
+                                            title="Eliminar lead">
+                                            <i class="fas fa-trash mr-1"></i> Eliminar
+                                        </button>
+                                    </div>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -163,6 +184,14 @@
                     <div class="text-[11px] border-l-2 border-orange-500/30 pl-3 py-1">
                         <span class="text-orange-500 font-bold">[{{ log[1] }}]</span>
                         <p class="text-slate-400">{{ log[2] }}</p>
+                        {% if log[0] != "0" %}
+                        <button type="button"
+                            data-log-id="{{ log[0] }}"
+                            class="delete-log mt-2 text-[10px] text-red-400 hover:text-red-300 transition"
+                            title="Eliminar este registro">
+                            <i class="fas fa-trash mr-1"></i> Eliminar registro
+                        </button>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -210,6 +239,7 @@
             </div>
 
             <form id="leadForm" class="p-6 space-y-4">
+                <input type="hidden" id="lead_id">
                 <input type="text" id="full_name" placeholder="FULL NAME" required
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition text-sm">
 
@@ -217,6 +247,9 @@
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition text-sm">
 
                 <input type="text" id="phone" placeholder="PHONE NUMBER"
+                    class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition text-sm">
+
+                <input type="text" id="source" placeholder="SOURCE"
                     class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-orange-500 outline-none transition text-sm">
 
                 <button type="submit"
@@ -228,6 +261,95 @@
     </div>
 
     <script>
+        function formatApiError(result) {
+            if (typeof result.detail === 'string') return result.detail;
+
+            if (Array.isArray(result.detail)) {
+                return result.detail.map((error) => {
+                    const field = Array.isArray(error.loc)
+                        ? error.loc.at(-1)
+                        : 'Datos';
+                    return `${field}: ${error.msg || 'Valor invalido'}`;
+                }).join('\n');
+            }
+
+            return 'No se pudieron guardar los datos.';
+        }
+
+        function showNetworkError() {
+            alert('No se pudo conectar con el servidor. Inténtalo de nuevo.');
+        }
+
+        function openNewLead() {
+            document.getElementById('leadForm').reset();
+            document.getElementById('lead_id').value = '';
+            document.getElementById('source').value = 'Dashboard V1';
+            document.querySelector('#leadModal h2').innerHTML =
+                'Register <span class="vanguard-orange">Lead</span>';
+            document.querySelector('#leadForm button[type="submit"]').textContent = 'Save Record';
+            document.getElementById('leadModal').classList.remove('hidden');
+        }
+
+        document.querySelectorAll('.edit-lead').forEach((button) => {
+            button.addEventListener('click', () => {
+                document.getElementById('lead_id').value = button.dataset.id;
+                document.getElementById('full_name').value = button.dataset.name || '';
+                document.getElementById('email').value = button.dataset.email || '';
+                document.getElementById('phone').value = button.dataset.phone || '';
+                document.getElementById('source').value = button.dataset.source || '';
+                document.querySelector('#leadModal h2').innerHTML =
+                    'Corregir <span class="vanguard-orange">Lead</span>';
+                document.querySelector('#leadForm button[type="submit"]').textContent = 'Guardar cambios';
+                document.getElementById('leadModal').classList.remove('hidden');
+            });
+        });
+
+        document.querySelectorAll('.delete-lead').forEach((button) => {
+            button.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar este lead? Esta acción no se puede deshacer.')) return;
+
+                let response;
+                try {
+                    response = await fetch(`/api/v1/leads/${button.dataset.id}`, {
+                        method: 'DELETE'
+                    });
+                } catch {
+                    showNetworkError();
+                    return;
+                }
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const result = await response.json();
+                    alert(formatApiError(result));
+                }
+            });
+        });
+
+        document.querySelectorAll('.delete-log').forEach((button) => {
+            button.addEventListener('click', async () => {
+                if (!confirm('¿Eliminar este registro del System Log?')) return;
+
+                let response;
+                try {
+                    response = await fetch(`/api/v1/audit-logs/${button.dataset.logId}`, {
+                        method: 'DELETE'
+                    });
+                } catch {
+                    showNetworkError();
+                    return;
+                }
+
+                if (response.ok) {
+                    location.reload();
+                } else {
+                    const result = await response.json();
+                    alert(formatApiError(result));
+                }
+            });
+        });
+
         document.getElementById('leadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
@@ -235,16 +357,31 @@
                 full_name: document.getElementById('full_name').value,
                 email: document.getElementById('email').value,
                 phone: document.getElementById('phone').value,
-                source: "Dashboard V1"
+                source: document.getElementById('source').value || "Dashboard V1"
             };
 
-            const response = await fetch('/api/v1/lead-intake', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const leadId = document.getElementById('lead_id').value;
+            const url = leadId
+                ? `/api/v1/leads/${leadId}`
+                : '/api/v1/lead-intake';
+
+            let response;
+            try {
+                response = await fetch(url, {
+                    method: leadId ? 'PATCH' : 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+            } catch {
+                showNetworkError();
+                return;
+            }
 
             if (response.ok) location.reload();
+            else {
+                const result = await response.json();
+                alert(formatApiError(result));
+            }
         });
     </script>
 

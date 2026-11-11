@@ -54,7 +54,7 @@ app.add_middleware(
         "http://localhost:8001,http://127.0.0.1:8001",
     ).split(","),
     allow_credentials=True,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type", "Accept", "Authorization"],
 )
 
@@ -62,6 +62,13 @@ app.add_middleware(
 
 # ── Modelo ────────────────────────────────────────────────────────────────────
 class Lead(BaseModel):
+    full_name: str
+    email: EmailStr
+    phone: str = "N/A"
+    source: str = "Dashboard V1"
+
+
+class LeadUpdate(BaseModel):
     full_name: str
     email: EmailStr
     phone: str = "N/A"
@@ -150,6 +157,79 @@ async def lead_intake(lead: Lead):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Editar lead ───────────────────────────────────────────────────────────────
+@app.patch("/api/v1/leads/{lead_id}")
+async def update_lead(lead_id: str, lead: LeadUpdate):
+    try:
+        try:
+            parsed_lead_id = uuid.UUID(lead_id)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Invalid lead UUID")
+
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT id FROM leads WHERE id = %s", (parsed_lead_id,))
+                if not cur.fetchone():
+                    raise HTTPException(
+                        status_code=404, detail=f"Lead con ID {lead_id} no encontrado"
+                    )
+
+                cur.execute(
+                    "UPDATE leads "
+                    "SET full_name = %s, email = %s, phone = %s, source = %s "
+                    "WHERE id = %s",
+                    (
+                        lead.full_name.strip(),
+                        str(lead.email),
+                        lead.phone.strip(),
+                        lead.source.strip(),
+                        parsed_lead_id,
+                    ),
+                )
+                cur.execute(
+                    "INSERT INTO audit_logs (action, details) VALUES (%s, %s)",
+                    ("UPDATE", f"Updated lead ID: {lead_id}"),
+                )
+                conn.commit()
+
+        return {"status": "updated", "id": lead_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to update lead: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+# ── Eliminar registro de auditoría ────────────────────────────────────────────
+@app.delete("/api/v1/audit-logs/{log_id}")
+async def delete_audit_log(log_id: int):
+    try:
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id FROM audit_logs WHERE id = %s",
+                    (log_id,),
+                )
+                if not cur.fetchone():
+                    raise HTTPException(
+                        status_code=404,
+                        detail=f"Registro de log con ID {log_id} no encontrado",
+                    )
+
+                cur.execute(
+                    "DELETE FROM audit_logs WHERE id = %s",
+                    (log_id,),
+                )
+                conn.commit()
+
+        return {"status": "deleted", "id": log_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"ERROR: Failed to delete audit log: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 # ── Eliminar lead ─────────────────────────────────────────────────────────────
